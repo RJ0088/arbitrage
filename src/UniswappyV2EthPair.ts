@@ -4,7 +4,7 @@ import { UNISWAP_PAIR_ABI, UNISWAP_QUERY_ABI } from "./abi";
 import { UNISWAP_LOOKUP_CONTRACT_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { CallDetails, EthMarket, MultipleCallData, TokenBalances } from "./EthMarket";
 import { ETHER } from "./utils";
-import { MarketsByToken } from "./Arbitrage";
+import { MarketsByToken, SwapToken } from "./Arbitrage";
 
 // batch count limit helpful for testing, loading entire set of uniswap markets takes a long time to load
 const BATCH_COUNT_LIMIT = 100;
@@ -158,6 +158,18 @@ export class UniswappyV2EthPair extends EthMarket {
     const numerator = amountInWithFee.mul(reserveOut);
     const denominator = reserveIn.mul(1000).add(amountInWithFee);
     return numerator.div(denominator);
+  }
+
+  simulateSwap(tokenIn: string, tokenOut: string, amountIn: BigNumber, expectedAmountOut: BigNumber, slippage: BigNumber): boolean{
+    const actualAmountOut = this.getTokensOut(tokenIn, tokenOut, amountIn);
+    if(expectedAmountOut.sub(actualAmountOut).gt(slippage)) { // slippage check
+      return false;
+    }
+
+    this._tokenBalances[tokenIn].add(amountIn);
+    this._tokenBalances[tokenOut].sub(actualAmountOut);
+
+    return true;
   }
 
   async sellTokensToNextMarket(tokenIn: string, amountIn: BigNumber, ethMarket: EthMarket): Promise<MultipleCallData> {

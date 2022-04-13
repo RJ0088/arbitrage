@@ -49,5 +49,7 @@ export abstract class EthMarket {
 
   abstract receiveDirectly(tokenAddress: string): boolean;
 
-  abstract prepareReceive(tokenAddress: string, amountIn: BigNumber): Promise<Array<CallDetails>>
+  abstract prepareReceive(tokenAddress: string, amountIn: BigNumber): Promise<Array<CallDetails>>;
+  
+  abstract simulateSwap(tokenIn: string, tokenOut: string, amountIn: BigNumber, expectedAmountOut: BigNumber, slippage: BigNumber): boolean;
 }
