@@ -9,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import { JsxEmit } from "typescript";
 
 
-const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "https://goerli.infura.io/v3/9dc997986f8840daa0e6ccb1d8d0d757"
+const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY || getDefaultRelaySigningKey();
 const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || "0xda0a57b710768ae17941a9fa33f8b720c8bd9ddd"
 
