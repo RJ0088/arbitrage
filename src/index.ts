@@ -7,6 +7,7 @@ import { Arbitrage, SwapToken, MarketsByToken } from "./Arbitrage";
 import { getDefaultRelaySigningKey } from "./utils";
 import { WebSocket } from 'ws';
 import { JsxEmit } from "typescript";
+const sockets = require('dgram');
 
 const HOST_URL = process.env.HOST_URL || 'ws://localhost:1234';
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
@@ -117,19 +118,36 @@ function simulateMarketSwap(tokenAddress: string, marketsByToken: MarketsByToken
 }
 main();
 
-const ws = new WebSocket(HOST_URL);
-ws.on('open', function open() {
-  ws.send('START');
+let client = sockets.createSocket('udp4');
+
+client.on('listening', ()=> {
+  var address = client.address();
+  console.log('UDP client listening on ' + address.address + ":" + address.port);
 });
 
-ws.on('message', function message(data: any) {
+client.send('START', 0, 5, 1234, 'localhost', function (err: any, bytes:any) {
+  if (err) throw err;
+  console.log('UDP message sent to ' + 'localhost' + ':' + 1234);
+});
+
+
+// const ws = new WebSocket(HOST_URL);
+// ws.on('open', function open() {
+//   ws.send('START');
+// });
+
+client.on('message', function message(data: any, remote: any) {
   try{
       const jsonData = JSON.parse(data);
       checkArbitrage(jsonData)
       .then((arbData) => {
         arbData['id'] = jsonData.id;
         console.log(arbData);
-        ws.send(JSON.stringify(arbData));
+        let resp = JSON.stringify(arbData);
+        client.send(resp, 0, resp.length, 1234, 'localhost',function (err: any, bytes:any) {
+          if (err) throw err;
+          console.log('UDP message sent to ' + 'localhost' + ':' + 1234);
+        });
       })
       .catch((e)=> {
         console.log(e);
