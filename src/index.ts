@@ -5,11 +5,11 @@ import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
 import { FACTORY_ADDRESSES, WETH_ADDRESS } from "./addresses";
 import { Arbitrage, SwapToken, MarketsByToken } from "./Arbitrage";
 import { getDefaultRelaySigningKey } from "./utils";
-import { WebSocketServer } from 'ws';
+import { WebSocket } from 'ws';
 import { JsxEmit } from "typescript";
 
-
-const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL
+const HOST_URL = process.env.HOST_URL || 'ws://localhost:1234';
+const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY || getDefaultRelaySigningKey();
 const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || "0xda0a57b710768ae17941a9fa33f8b720c8bd9ddd"
 
@@ -117,14 +117,17 @@ function simulateMarketSwap(tokenAddress: string, marketsByToken: MarketsByToken
 }
 main();
 
-const wss = new WebSocketServer({port: 8080});
+const ws = new WebSocket(HOST_URL);
+ws.on('open', function open() {
+  ws.send('START');
+});
 
-wss.on('connection', function connection(ws) {
-  ws.on('message', function message(data: any) {
-    try{
+ws.on('message', function message(data: any) {
+  try{
       const jsonData = JSON.parse(data);
       checkArbitrage(jsonData)
       .then((arbData) => {
+        arbData['id'] = jsonData.id;
         console.log(arbData);
         ws.send(JSON.stringify(arbData));
       })
@@ -135,8 +138,6 @@ wss.on('connection', function connection(ws) {
     } catch(e) {
       console.log(e);
     }
-    
   });
-});
 
 const port = process.env.PORT || 8080;
