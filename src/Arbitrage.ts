@@ -16,7 +16,7 @@ export interface CrossedMarketDetails {
 export type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
 
 export type SwapToken = {
-    id: number;
+    id: number,
     tokenIn: string,
     amountIn: BigNumber,
     tokenOut: string,
