@@ -1,3 +1,30 @@
+export const UNISWAP_ROUTER02_ABI = [{
+  "inputs":[],
+  "name":"factory",
+  "outputs":[{"internalType":"address","name":"","type":"address"}],
+  "stateMutability":"view",
+  "type":"function"
+}]
+
+export const UNISWAP_FACTORY_ABI = [{
+  "constant": true,
+  "inputs": [
+    {
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }, {
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+  "name": "getPair",
+  "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+  "payable": false,
+  "stateMutability": "view",
+  "type": "function"
+}]
+
 export const UNISWAP_QUERY_ABI = [{
   "inputs": [{
     "internalType": "contract UniswapV2Factory",

@@ -1,14 +1,15 @@
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { BigNumber, Contract, providers, Wallet } from "ethers";
-import { BUNDLE_EXECUTOR_ABI } from "./abi";
+import { BUNDLE_EXECUTOR_ABI, UNISWAP_ROUTER02_ABI, UNISWAP_FACTORY_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
-import { FACTORY_ADDRESSES, WETH_ADDRESS } from "./addresses";
+import { FACTORY_ADDRESSES, UNISWAP_FACTORY_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { Arbitrage, SwapToken, MarketsByToken } from "./Arbitrage";
 import { getDefaultRelaySigningKey } from "./utils";
 import { WebSocket } from 'ws';
 import { JsxEmit } from "typescript";
 const sockets = require('dgram');
 
+console.log("arguments: ", process.argv);
 const HOST_URL = process.env.HOST_URL || 'ws://localhost:1234';
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY || getDefaultRelaySigningKey();
@@ -46,11 +47,21 @@ const flashbotsRelaySigningWallet = new Wallet(FLASHBOTS_RELAY_SIGNING_KEY);
 //   get(HEALTHCHECK_URL).on('error', console.error);
 // }
 
+async function getPairAddressFromRouter(swapTx: SwapToken) {
+    const router = new Contract(swapTx.market, UNISWAP_ROUTER02_ABI, provider);
+    const factoryAddress: string = await router.functions.factory();
+    const factory = new Contract(factoryAddress, UNISWAP_FACTORY_ABI, provider);
+    const pairAddress: string  = await factory.functions.getPair(swapTx.amountIn, swapTx.amountOut);
+    return pairAddress;
+}
 async function checkArbitrage(swapTx: SwapToken): Promise<any> {
     if(latestBlock != lastUpdatedReserveBlock) {
       await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
       lastUpdatedReserveBlock = latestBlock;
     }
+    console.log("routerAddress: ", swapTx.market);
+    swapTx.market = await getPairAddressFromRouter(swapTx);
+    console.log("pairAddress: ", swapTx.market);
     if(swapTx.tokenOut == WETH_ADDRESS && simulateMarketSwap(swapTx.tokenIn, markets, swapTx)) {
       const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenIn, markets);
       if(bestCrossedMarket !== undefined){
@@ -109,8 +120,11 @@ function simulateMarketSwap(tokenAddress: string, marketsByToken: MarketsByToken
 
   const markets = marketsByToken[tokenAddress];
 
+  console.log("debug: swap market ", swap.market);
   for(const market of markets) {
+    console.log("debug: marketAdd ", market.marketAddress)
     if(market.marketAddress == swap.market) {
+      console.log("debug: simiulated");
       return market.simulateSwap(swap.tokenIn, swap.tokenOut, swap.amountIn, swap.amountOut, BigNumber.from(swap.slippage))
     }
   }
@@ -139,6 +153,7 @@ client.send('START', 0, 5, 1234, 'localhost', function (err: any, bytes:any) {
 client.on('message', function message(data: any, remote: any) {
   try{
       const jsonData = JSON.parse(data);
+      console.log("received data", jsonData);
       checkArbitrage(jsonData)
       .then((arbData) => {
         arbData['id'] = jsonData.id;
