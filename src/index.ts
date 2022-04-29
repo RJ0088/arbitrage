@@ -49,9 +49,9 @@ const flashbotsRelaySigningWallet = new Wallet(FLASHBOTS_RELAY_SIGNING_KEY);
 
 async function getPairAddressFromRouter(swapTx: SwapToken) {
     const router = new Contract(swapTx.market, UNISWAP_ROUTER02_ABI, provider);
-    const factoryAddress: string = await router.functions.factory();
+    const factoryAddress: string = (await router.functions.factory())[0];
     const factory = new Contract(factoryAddress, UNISWAP_FACTORY_ABI, provider);
-    const pairAddress: string  = await factory.functions.getPair(swapTx.amountIn, swapTx.amountOut);
+    const pairAddress: string  = (await factory.functions.getPair(swapTx.tokenIn, swapTx.tokenOut))[0];
     return pairAddress;
 }
 async function checkArbitrage(swapTx: SwapToken): Promise<any> {
@@ -125,7 +125,7 @@ function simulateMarketSwap(tokenAddress: string, marketsByToken: MarketsByToken
     console.log("debug: marketAdd ", market.marketAddress)
     if(market.marketAddress == swap.market) {
       console.log("debug: simiulated");
-      return market.simulateSwap(swap.tokenIn, swap.tokenOut, swap.amountIn, swap.amountOut, BigNumber.from(swap.slippage))
+      return market.simulateSwap(swap.tokenIn, swap.tokenOut, BigNumber.from(swap.amountIn), BigNumber.from(swap.amountOut), BigNumber.from(swap.slippage))
     }
   }
   return false
@@ -156,9 +156,9 @@ client.on('message', function message(data: any, remote: any) {
       console.log("received data", jsonData);
       checkArbitrage(jsonData)
       .then((arbData) => {
-        arbData['id'] = jsonData.id;
-        console.log(arbData);
-        let resp = JSON.stringify(arbData);
+        let jsonResp = {'id': jsonData.id, 'signedTx': arbData};
+        console.log(jsonResp);
+        let resp = JSON.stringify(jsonResp);
         client.send(resp, 0, resp.length, 1234, 'localhost',function (err: any, bytes:any) {
           if (err) throw err;
           console.log('UDP message sent to ' + 'localhost' + ':' + 1234);

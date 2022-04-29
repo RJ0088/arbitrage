@@ -157,7 +157,7 @@ export class Arbitrage {
     return bestCrossedMarkets
   }
 
-  async getCrossedMarketTxn(bestCrossedMarket: CrossedMarketDetails, minerRewardPercentage: number): Promise<PopulatedTransaction> {
+  async getCrossedMarketTxn(bestCrossedMarket: CrossedMarketDetails, minerRewardPercentage: number): Promise<String> {
 
         console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
         const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
@@ -182,7 +182,8 @@ export class Arbitrage {
             return Promise.reject("EstimatedGas Large");
           }
           transaction.gasLimit = estimateGas.mul(2)
-          return Promise.resolve(transaction);
+          const signedTxn = await this.executorWallet.signTransaction(transaction)
+          return Promise.resolve(signedTxn);
         } catch (e) {
           console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
           return Promise.reject(e);
