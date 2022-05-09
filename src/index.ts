@@ -2,7 +2,7 @@ import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { BigNumber, Contract, providers, Wallet } from "ethers";
 import { BUNDLE_EXECUTOR_ABI, UNISWAP_ROUTER02_ABI, UNISWAP_FACTORY_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
-import { FACTORY_ADDRESSES, UNISWAP_FACTORY_ADDRESS, WETH_ADDRESS } from "./addresses";
+import { FACTORY_ADDRESSES, TOKEN_ADDRESS_SUPPORTED, UNISWAP_FACTORY_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { Arbitrage, SwapToken, MarketsByToken } from "./Arbitrage";
 import { getDefaultRelaySigningKey } from "./utils";
 import { WebSocket } from 'ws';
@@ -54,14 +54,14 @@ async function checkArbitrage(swapTx: SwapToken): Promise<any> {
     console.log("routerAddress: ", swapTx.market);
     swapTx.market = await getPairAddressFromRouter(swapTx);
     console.log("pairAddress: ", swapTx.market);
-    if(swapTx.tokenOut == WETH_ADDRESS && simulateMarketSwap(swapTx.tokenIn, markets, swapTx)) {
-      const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenIn, markets);
+    if(TOKEN_ADDRESS_SUPPORTED.has(swapTx.tokenOut) && simulateMarketSwap(swapTx.tokenIn, markets, swapTx)) {
+      const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenIn, swapTx.tokenOut, markets);
       if(bestCrossedMarket !== undefined){
         Arbitrage.printCrossedMarket(bestCrossedMarket);
         return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE)
       }
-    } else if(swapTx.tokenIn == WETH_ADDRESS && simulateMarketSwap(swapTx.tokenOut, markets, swapTx)) {
-      const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenOut, markets);
+    } else if(TOKEN_ADDRESS_SUPPORTED.has(swapTx.tokenIn) && simulateMarketSwap(swapTx.tokenOut, markets, swapTx)) {
+      const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenOut, swapTx.tokenIn, markets);
       if(bestCrossedMarket !== undefined){
         Arbitrage.printCrossedMarket(bestCrossedMarket);
         return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE)

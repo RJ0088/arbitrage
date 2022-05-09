@@ -101,13 +101,13 @@ export class Arbitrage {
     )
   }
 
-  evaluateMarketsForToken(tokenAddress: string, marketsByToken: MarketsByToken) : CrossedMarketDetails | undefined {
-    const markets = marketsByToken[tokenAddress]
+  evaluateMarketsForToken(tokenAddress1: string, tokenAddress2: string, marketsByToken: MarketsByToken) : CrossedMarketDetails | undefined {
+    const markets = marketsByToken[tokenAddress1]
     const pricedMarkets = _.map(markets, (ethMarket: EthMarket) => {
         return {
           ethMarket: ethMarket,
-          buyTokenPrice: ethMarket.getTokensIn(tokenAddress, WETH_ADDRESS, ETHER.div(100)),
-          sellTokenPrice: ethMarket.getTokensOut(WETH_ADDRESS, tokenAddress, ETHER.div(100)),
+          buyTokenPrice: ethMarket.getTokensIn(tokenAddress1, tokenAddress2, ETHER.div(100)),
+          sellTokenPrice: ethMarket.getTokensOut(tokenAddress2, tokenAddress1, ETHER.div(100)),
         }
     });
 

@@ -1,7 +1,7 @@
 import * as _ from "lodash";
 import { BigNumber, Contract, providers } from "ethers";
 import { UNISWAP_PAIR_ABI, UNISWAP_QUERY_ABI } from "./abi";
-import { UNISWAP_LOOKUP_CONTRACT_ADDRESS, WETH_ADDRESS } from "./addresses";
+import { TOKEN_ADDRESS_SUPPORTED, UNISWAP_LOOKUP_CONTRACT_ADDRESS, WETH_ADDRESS } from "./addresses";
 import { CallDetails, EthMarket, MultipleCallData, TokenBalances } from "./EthMarket";
 import { ETHER } from "./utils";
 import { MarketsByToken, SwapToken } from "./Arbitrage";
@@ -56,9 +56,9 @@ export class UniswappyV2EthPair extends EthMarket {
         const marketAddress = pair[2];
         let tokenAddress: string;
 
-        if (pair[0] === WETH_ADDRESS) {
+        if (TOKEN_ADDRESS_SUPPORTED.has(pair[0])) {
           tokenAddress = pair[1]
-        } else if (pair[1] === WETH_ADDRESS) {
+        } else if (TOKEN_ADDRESS_SUPPORTED.has(pair[1])) {
           tokenAddress = pair[0]
         } else {
           continue;
@@ -83,7 +83,7 @@ export class UniswappyV2EthPair extends EthMarket {
 
     const marketsByTokenAll = _.chain(allPairs)
       .flatten()
-      .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
+      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
       .value()
 
     const allMarketPairs = _.chain(
@@ -96,8 +96,9 @@ export class UniswappyV2EthPair extends EthMarket {
     await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
 
     const marketsByToken = _.chain(allMarketPairs)
-      .filter(pair => (pair.getBalance(WETH_ADDRESS).gt(ETHER)))
-      .groupBy(pair => pair.tokens[0] === WETH_ADDRESS ? pair.tokens[1] : pair.tokens[0])
+      .filter(pair => (TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.getBalance(pair.tokens[0]).gt(TOKEN_ADDRESS_SUPPORTED.get(pair.tokens[0]) as BigNumber):
+                        pair.getBalance(pair.tokens[1]).gt(TOKEN_ADDRESS_SUPPORTED.get(pair.tokens[1]) as BigNumber)))
+      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
       .value()
 
     return {
