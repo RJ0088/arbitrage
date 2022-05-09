@@ -8,8 +8,8 @@ import { getDefaultRelaySigningKey } from "./utils";
 import { WebSocket } from 'ws';
 import { JsxEmit } from "typescript";
 const sockets = require('dgram');
+require('dotenv').config();
 
-console.log("arguments: ", process.argv);
 const HOST_URL = process.env.HOST_URL || 'ws://localhost:1234';
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY || getDefaultRelaySigningKey();
@@ -33,19 +33,11 @@ if (FLASHBOTS_RELAY_SIGNING_KEY === "") {
   process.exit(1)
 }
 
-//const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL || ""
 
 const provider = new providers.StaticJsonRpcProvider(ETHEREUM_RPC_URL);
 
 const arbitrageSigningWallet = new Wallet(PRIVATE_KEY);
 const flashbotsRelaySigningWallet = new Wallet(FLASHBOTS_RELAY_SIGNING_KEY);
-
-// function healthcheck() {
-//   if (HEALTHCHECK_URL === "") {
-//     return
-//   }
-//   get(HEALTHCHECK_URL).on('error', console.error);
-// }
 
 async function getPairAddressFromRouter(swapTx: SwapToken) {
     const router = new Contract(swapTx.market, UNISWAP_ROUTER02_ABI, provider);
@@ -55,7 +47,7 @@ async function getPairAddressFromRouter(swapTx: SwapToken) {
     return pairAddress;
 }
 async function checkArbitrage(swapTx: SwapToken): Promise<any> {
-    if(latestBlock != lastUpdatedReserveBlock) {
+    if(latestBlock === undefined || latestBlock != lastUpdatedReserveBlock) {
       await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
       lastUpdatedReserveBlock = latestBlock;
     }
@@ -85,8 +77,6 @@ let latestBlock: number;
 let lastUpdatedReserveBlock: number;
 
 async function main() {
-  //console.log("Searcher Wallet Address: " + await arbitrageSigningWallet.getAddress())
-  //console.log("Flashbots Relay Signing Wallet Address: " + await flashbotsRelaySigningWallet.getAddress())
   const flashbotsProvider = await FlashbotsBundleProvider.create(provider, flashbotsRelaySigningWallet);
   console.log("BUNDLE_EXECUTOR_ADDRESS: ", BUNDLE_EXECUTOR_ADDRESS);
   arbitrage = new Arbitrage(
@@ -102,14 +92,6 @@ async function main() {
   provider.on('block', async (blockNumber) => {
     latestBlock = blockNumber;
     console.log('block received: ', blockNumber);
-    //await UniswappyV2EthPair.updateReserves(provider, markets.allMarketPairs);
-    // const bestCrossedMarkets = await arbitrage.evaluateMarkets(markets.marketsByToken);
-    // if (bestCrossedMarkets.length === 0) {
-    //   console.log("No crossed markets")
-    //   return
-    // }
-    // bestCrossedMarkets.forEach(Arbitrage.printCrossedMarket);
-    // arbitrage.takeCrossedMarkets(bestCrossedMarkets, blockNumber, MINER_REWARD_PERCENTAGE).then(healthcheck).catch(console.error)
   })
 }
 
@@ -117,9 +99,7 @@ function simulateMarketSwap(tokenAddress: string, marketsByToken: MarketsByToken
   if(marketsByToken[tokenAddress] === undefined) {
     return false;
   }
-
   const markets = marketsByToken[tokenAddress];
-
   console.log("debug: swap market ", swap.market);
   for(const market of markets) {
     console.log("debug: marketAdd ", market.marketAddress)

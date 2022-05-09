@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@flashbots/ethers-provider-bundle": "^0.3.1",
+    "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "lodash": "^4.17.21",
     "ts-node": "^9.1.0",
