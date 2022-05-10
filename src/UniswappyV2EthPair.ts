@@ -56,9 +56,9 @@ export class UniswappyV2EthPair extends EthMarket {
         const marketAddress = pair[2];
         let tokenAddress: string;
 
-        if (TOKEN_ADDRESS_SUPPORTED.has(pair[0])) {
+        if (TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(pair[0])) {
           tokenAddress = pair[1]
-        } else if (TOKEN_ADDRESS_SUPPORTED.has(pair[1])) {
+        } else if (TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(pair[1])) {
           tokenAddress = pair[0]
         } else {
           continue;
@@ -83,7 +83,7 @@ export class UniswappyV2EthPair extends EthMarket {
 
     const marketsByTokenAll = _.chain(allPairs)
       .flatten()
-      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
+      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
       .value()
 
     const allMarketPairs = _.chain(
@@ -96,9 +96,9 @@ export class UniswappyV2EthPair extends EthMarket {
     await UniswappyV2EthPair.updateReserves(provider, allMarketPairs);
 
     const marketsByToken = _.chain(allMarketPairs)
-      .filter(pair => (TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.getBalance(pair.tokens[0]).gt(TOKEN_ADDRESS_SUPPORTED.get(pair.tokens[0]) as BigNumber):
-                        pair.getBalance(pair.tokens[1]).gt(TOKEN_ADDRESS_SUPPORTED.get(pair.tokens[1]) as BigNumber)))
-      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.has(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
+      .filter(pair => (TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(pair.tokens[0]) ? pair.getBalance(pair.tokens[0]).gt(TOKEN_ADDRESS_SUPPORTED[pair.tokens[0]]):
+                        pair.getBalance(pair.tokens[1]).gt(TOKEN_ADDRESS_SUPPORTED[pair.tokens[1]])))
+      .groupBy(pair => TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(pair.tokens[0]) ? pair.tokens[1] : pair.tokens[0])
       .value()
 
     return {

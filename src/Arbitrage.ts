@@ -37,26 +37,26 @@ const TEST_VOLUMES = [
   ETHER.mul(10),
 ]
 
-export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress: string): CrossedMarketDetails | undefined {
+export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress1: string, tokenAddress2: string): CrossedMarketDetails | undefined {
   let bestCrossedMarket: CrossedMarketDetails | undefined = undefined;
   for (const crossedMarket of crossedMarkets) {
     const sellToMarket = crossedMarket[0]
     const buyFromMarket = crossedMarket[1]
     for (const size of TEST_VOLUMES) {
-      const tokensOutFromBuyingSize = buyFromMarket.getTokensOut(WETH_ADDRESS, tokenAddress, size);
-      const proceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress, WETH_ADDRESS, tokensOutFromBuyingSize)
+      const tokensOutFromBuyingSize = buyFromMarket.getTokensOut(tokenAddress2, tokenAddress1, size);
+      const proceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress1, tokenAddress2, tokensOutFromBuyingSize)
       const profit = proceedsFromSellingTokens.sub(size);
       if (bestCrossedMarket !== undefined && profit.lt(bestCrossedMarket.profit)) {
         // If the next size up lost value, meet halfway. TODO: replace with real binary search
         const trySize = size.add(bestCrossedMarket.volume).div(2)
-        const tryTokensOutFromBuyingSize = buyFromMarket.getTokensOut(WETH_ADDRESS, tokenAddress, trySize);
-        const tryProceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress, WETH_ADDRESS, tryTokensOutFromBuyingSize)
+        const tryTokensOutFromBuyingSize = buyFromMarket.getTokensOut(tokenAddress2, tokenAddress1, trySize);
+        const tryProceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress1, tokenAddress2, tryTokensOutFromBuyingSize)
         const tryProfit = tryProceedsFromSellingTokens.sub(trySize);
         if (tryProfit.gt(bestCrossedMarket.profit)) {
           bestCrossedMarket = {
             volume: trySize,
             profit: tryProfit,
-            tokenAddress,
+            tokenAddress: tokenAddress1,
             sellToMarket,
             buyFromMarket
           }
@@ -66,7 +66,7 @@ export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAd
       bestCrossedMarket = {
         volume: size,
         profit: profit,
-        tokenAddress,
+        tokenAddress: tokenAddress1,
         sellToMarket,
         buyFromMarket
       }
@@ -77,11 +77,11 @@ export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAd
 
 export class Arbitrage {
   private flashbotsProvider: FlashbotsBundleProvider;
-  private bundleExecutorContract: Contract;
+  private bundleExecutorContract: {[key:string]: Contract};
   private executorWallet: Wallet;
-  private bundleExecutorContractAddress: string;
+  private bundleExecutorContractAddress: {[key:string]: string};
 
-  constructor(executorWallet: Wallet, flashbotsProvider: FlashbotsBundleProvider, bundleExecutorContract: Contract, bundleExecutorContractAddress: string) {
+  constructor(executorWallet: Wallet, flashbotsProvider: FlashbotsBundleProvider, bundleExecutorContract: {[key:string]: Contract}, bundleExecutorContractAddress: {[key:string]: string}) {
     this.executorWallet = executorWallet;
     this.flashbotsProvider = flashbotsProvider;
     this.bundleExecutorContract = bundleExecutorContract;
@@ -120,7 +120,7 @@ export class Arbitrage {
       })
     }
 
-    const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
+    const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress1, tokenAddress2);
       if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
         return bestCrossedMarket
       }
@@ -148,7 +148,7 @@ export class Arbitrage {
         })
       }
 
-      const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
+      const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress, WETH_ADDRESS);
       if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
         bestCrossedMarkets.push(bestCrossedMarket)
       }
@@ -157,22 +157,22 @@ export class Arbitrage {
     return bestCrossedMarkets
   }
 
-  async getCrossedMarketTxn(bestCrossedMarket: CrossedMarketDetails, minerRewardPercentage: number): Promise<String> {
+  async getCrossedMarketTxn(bestCrossedMarket: CrossedMarketDetails, minerRewardPercentage: number, tokenAddress :string): Promise<String> {
 
         console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
-        const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
-        const inter = bestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
-        const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContractAddress);
+        const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(tokenAddress, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
+        const inter = bestCrossedMarket.buyFromMarket.getTokensOut(tokenAddress, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
+        const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContractAddress[tokenAddress]);
         const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
         const payloads: Array<string> = [...buyCalls.data, sellCallData]
         const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
-        const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
+        const transaction = await this.bundleExecutorContract[tokenAddress].populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
           gasPrice: BigNumber.from(0),
           gasLimit: BigNumber.from(1000000),
         });
 
         try {
-          const estimateGas = await this.bundleExecutorContract.provider.estimateGas(
+          const estimateGas = await this.bundleExecutorContract[tokenAddress].provider.estimateGas(
             {
               ...transaction,
               from: this.executorWallet.address
@@ -197,19 +197,19 @@ export class Arbitrage {
       console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
       const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
       const inter = bestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
-      const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
+      const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract[WETH_ADDRESS].address);
 
       const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
       const payloads: Array<string> = [...buyCalls.data, sellCallData]
       console.log({targets, payloads})
       const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
-      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
+      const transaction = await this.bundleExecutorContract[WETH_ADDRESS].populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
         gasPrice: BigNumber.from(0),
         gasLimit: BigNumber.from(1000000),
       });
 
       try {
-        const estimateGas = await this.bundleExecutorContract.provider.estimateGas(
+        const estimateGas = await this.bundleExecutorContract[WETH_ADDRESS].provider.estimateGas(
           {
             ...transaction,
             from: this.executorWallet.address

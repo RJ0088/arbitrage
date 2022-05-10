@@ -2,7 +2,7 @@ import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { BigNumber, Contract, providers, Wallet } from "ethers";
 import { BUNDLE_EXECUTOR_ABI, UNISWAP_ROUTER02_ABI, UNISWAP_FACTORY_ABI } from "./abi";
 import { UniswappyV2EthPair } from "./UniswappyV2EthPair";
-import { FACTORY_ADDRESSES, TOKEN_ADDRESS_SUPPORTED, UNISWAP_FACTORY_ADDRESS, WETH_ADDRESS } from "./addresses";
+import { FACTORY_ADDRESSES, TOKEN_ADDRESS_SUPPORTED, UNISWAP_FACTORY_ADDRESS, WETH_ADDRESS , BUNDLE_EXECUTOR_ADDRESS} from "./addresses";
 import { Arbitrage, SwapToken, MarketsByToken } from "./Arbitrage";
 import { getDefaultRelaySigningKey } from "./utils";
 import { WebSocket } from 'ws';
@@ -13,7 +13,6 @@ require('dotenv').config();
 const HOST_URL = process.env.HOST_URL || 'ws://localhost:1234';
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY || getDefaultRelaySigningKey();
-const BUNDLE_EXECUTOR_ADDRESS = process.env.BUNDLE_EXECUTOR_ADDRESS || "0xda0a57b710768ae17941a9fa33f8b720c8bd9ddd"
 
 const FLASHBOTS_RELAY_SIGNING_KEY = process.env.FLASHBOTS_RELAY_SIGNING_KEY || getDefaultRelaySigningKey();
 
@@ -21,10 +20,6 @@ const MINER_REWARD_PERCENTAGE = parseInt(process.env.MINER_REWARD_PERCENTAGE || 
 
 if (PRIVATE_KEY === "") {
   console.warn("Must provide PRIVATE_KEY environment variable")
-  process.exit(1)
-}
-if (BUNDLE_EXECUTOR_ADDRESS === "") {
-  console.warn("Must provide BUNDLE_EXECUTOR_ADDRESS environment variable. Please see README.md")
   process.exit(1)
 }
 
@@ -54,17 +49,17 @@ async function checkArbitrage(swapTx: SwapToken): Promise<any> {
     console.log("routerAddress: ", swapTx.market);
     swapTx.market = await getPairAddressFromRouter(swapTx);
     console.log("pairAddress: ", swapTx.market);
-    if(TOKEN_ADDRESS_SUPPORTED.has(swapTx.tokenOut) && simulateMarketSwap(swapTx.tokenIn, markets, swapTx)) {
+    if(TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(swapTx.tokenOut) && simulateMarketSwap(swapTx.tokenIn, markets, swapTx)) {
       const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenIn, swapTx.tokenOut, markets);
       if(bestCrossedMarket !== undefined){
         Arbitrage.printCrossedMarket(bestCrossedMarket);
-        return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE)
+        return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE, swapTx.tokenOut)
       }
-    } else if(TOKEN_ADDRESS_SUPPORTED.has(swapTx.tokenIn) && simulateMarketSwap(swapTx.tokenOut, markets, swapTx)) {
+    } else if(TOKEN_ADDRESS_SUPPORTED.hasOwnProperty(swapTx.tokenIn) && simulateMarketSwap(swapTx.tokenOut, markets, swapTx)) {
       const bestCrossedMarket = arbitrage.evaluateMarketsForToken(swapTx.tokenOut, swapTx.tokenIn, markets);
       if(bestCrossedMarket !== undefined){
         Arbitrage.printCrossedMarket(bestCrossedMarket);
-        return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE)
+        return arbitrage.getCrossedMarketTxn(bestCrossedMarket, MINER_REWARD_PERCENTAGE, swapTx.tokenIn)
       }
     }
     return Promise.reject("no arbitrage")
@@ -79,11 +74,15 @@ let lastUpdatedReserveBlock: number;
 async function main() {
   const flashbotsProvider = await FlashbotsBundleProvider.create(provider, flashbotsRelaySigningWallet);
   console.log("BUNDLE_EXECUTOR_ADDRESS: ", BUNDLE_EXECUTOR_ADDRESS);
+  let bundleExecuterContracts: {[key:string]: Contract} = {};
+  for(const tokenAddress in  BUNDLE_EXECUTOR_ADDRESS) {
+    bundleExecuterContracts[tokenAddress] = new Contract(BUNDLE_EXECUTOR_ADDRESS[tokenAddress],BUNDLE_EXECUTOR_ABI, provider);
+  }
   arbitrage = new Arbitrage(
     arbitrageSigningWallet,
     flashbotsProvider,
-    new Contract(BUNDLE_EXECUTOR_ADDRESS, BUNDLE_EXECUTOR_ABI, provider) ,
-    BUNDLE_EXECUTOR_ADDRESS    )
+    bundleExecuterContracts ,
+    BUNDLE_EXECUTOR_ADDRESS )
 
   const groupedMarkets = await UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES);
   markets = groupedMarkets.marketsByToken;

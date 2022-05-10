@@ -1,3 +1,4 @@
+import { BigNumber } from "ethers";
 import { ETHER } from "./utils";
 
 export const UNISWAP_LOOKUP_CONTRACT_ADDRESS = '0x8b0bca2bb41b126a2bd43453cc0c25a4b8f7cc31';//'0x5EF1009b9FCD4fec3094a5564047e190D72Bd511' // need to deploy
@@ -7,8 +8,8 @@ export const UNISWAP_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA
 export const CRO_FACTORY_ADDRESS = "0x9DEB29c9a4c7A88a3C0257393b7f3335338D9A9D"; // not found goerli
 export const ZEUS_FACTORY_ADDRESS = "0xbdda21dd8da31d5bee0c9bb886c044ebb9b8906a"; // not found goerli
 export const LUA_FACTORY_ADDRESS = "0x0388c1e0f210abae597b7de712b9510c6c36c857"; // not found on goerli
-export const MATIC_ADDRESS = '';
-export const WMATIC_ADDRESS = '';
+export const MATIC_ADDRESS = '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0';
+export const WMATIC_ADDRESS = '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270';
 
 export const FACTORY_ADDRESSES = [
   // CRO_FACTORY_ADDRESS,
@@ -18,5 +19,17 @@ export const FACTORY_ADDRESSES = [
   UNISWAP_FACTORY_ADDRESS,
 ]
 
-export const TOKEN_ADDRESS_SUPPORTED = new Map([
-  [WETH_ADDRESS, ETHER] , [WMATIC_ADDRESS, ETHER], [MATIC_ADDRESS, ETHER]]);
+export const TOKEN_ADDRESS_SUPPORTED: {[key:string]: BigNumber} = {
+  [WETH_ADDRESS]: ETHER,
+  [WMATIC_ADDRESS]: ETHER,
+  [MATIC_ADDRESS]: ETHER
+};
+
+// export const TOKEN_ADDRESS_SUPPORTED = new Map([
+//   [WETH_ADDRESS, ETHER] , [WMATIC_ADDRESS, ETHER], [MATIC_ADDRESS, ETHER]]);
+
+export const BUNDLE_EXECUTOR_ADDRESS: {[key: string]: string} = {
+  [WETH_ADDRESS]: '0xda0a57b710768ae17941a9fa33f8b720c8bd9ddd',
+  [WMATIC_ADDRESS]: '',
+  [MATIC_ADDRESS]: ''
+}
